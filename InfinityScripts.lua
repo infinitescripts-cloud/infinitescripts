@@ -3,6 +3,7 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -139,7 +140,7 @@ DiscCorner.Parent = DiscordBtn
 local FastTween = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 DiscordBtn.MouseButton1Click:Connect(function()
-    local discordInvite = "https://discord.gg/yourlink" -- Replace with your actual Discord link
+    local discordInvite = "https://discord.gg/yourlink"
     if setclipboard then
         setclipboard(discordInvite)
         DiscordBtn.Text = "✔ Link Copied!"
@@ -473,11 +474,54 @@ local function CreateScriptButton(title, parentContainer, scriptFunc)
     end)
 end
 
+local function CreateAdButton(title, parentContainer, linkUrl, successText)
+    local AdBtn = Instance.new("TextButton")
+    AdBtn.Size = UDim2.new(1, 0, 0, 24)
+    AdBtn.BackgroundColor3 = Color3.fromRGB(35, 30, 50)
+    AdBtn.BorderSizePixel = 0
+    AdBtn.Text = "  📢  " .. title
+    AdBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
+    AdBtn.TextSize = 8
+    AdBtn.Font = Enum.Font.GothamBold
+    AdBtn.TextXAlignment = Enum.TextXAlignment.Left
+    AdBtn.Parent = parentContainer
+
+    local AdCorner = Instance.new("UICorner")
+    AdCorner.CornerRadius = UDim.new(0, 4)
+    AdCorner.Parent = AdBtn
+
+    local AdStroke = Instance.new("UIStroke")
+    AdStroke.Thickness = 1
+    AdStroke.Color = Color3.fromRGB(255, 215, 0)
+    AdStroke.Transparency = 0.6
+    AdStroke.Parent = AdBtn
+
+    AdBtn.MouseButton1Click:Connect(function()
+        if setclipboard then
+            setclipboard(linkUrl)
+            AdBtn.Text = "  ✔ " .. (successText or "Link Copied!")
+            TweenService:Create(AdBtn, FastTween, {BackgroundColor3 = Color3.fromRGB(46, 139, 87)}):Play()
+            task.wait(1.5)
+            AdBtn.Text = "  📢  " .. title
+            TweenService:Create(AdBtn, FastTween, {BackgroundColor3 = Color3.fromRGB(35, 30, 50)}):Play()
+        else
+            AdBtn.Text = "  ✕ Clipboard Unsupported"
+        end
+    end)
+end
+
 ---------------------------------------------------------
--- POPULATE CATEGORIES & SCRIPTS
+-- POPULATE CATEGORIES, PROMOTIONS & SCRIPTS
 ---------------------------------------------------------
 
--- 1. Main Hubs Category
+-- 1. Community & Support Ads Category
+local adsCategory = CreateDropdown("📢 Community & Support")
+
+CreateAdButton("Join Our Discord Server", adsCategory, "https://discord.gg/yourlink", "DC Link Copied!")
+CreateAdButton("Subscribe on YouTube", adsCategory, "https://youtube.com/@yourchannel", "YT Link Copied!")
+CreateAdButton("Follow Our TikTok", adsCategory, "https://tiktok.com/@yourprofile", "TikTok Copied!")
+
+-- 2. Main Hubs Category
 local mainHubs = CreateDropdown("Main Hubs & Universal")
 
 CreateScriptButton("Infinite Yield FE", mainHubs, function()
@@ -492,7 +536,7 @@ CreateScriptButton("Nameless Admin", mainHubs, function()
     loadstring(game:HttpGet('https://raw.githubusercontent.com/FilterAura/Nameless-Admin/main/Source'))()
 end)
 
--- 2. Visuals & ESP
+-- 3. Visuals & ESP
 local visuals = CreateDropdown("Visuals & Character")
 
 CreateScriptButton("Simple ESP", visuals, function()
@@ -503,19 +547,22 @@ CreateScriptButton("Fly Script (Press E)", visuals, function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEKO-SCRIPTS/Fly-Script/main/script"))()
 end)
 
--- 3. Utility & Discord
-local utility = CreateDropdown("Utility")
-
-CreateScriptButton("Copy Discord Invite", utility, function()
-    local discordLink = "https://discord.gg/yourlink"
-    if setclipboard then
-        setclipboard(discordLink)
-    end
-end)
+-- 4. Utility Category
+local utility = CreateDropdown("Utility Tools")
 
 CreateScriptButton("Rejoin Game", utility, function()
-    local TeleportService = game:GetService("TeleportService")
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+end)
+
+CreateScriptButton("Server Hop", utility, function()
+    local HttpService = game:GetService("HttpService")
+    local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+    for _, s in ipairs(servers.data) do
+        if s.playing < s.maxPlayers and s.id ~= game.JobId then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+            break
+        end
+    end
 end)
 
 ---------------------------------------------------------
@@ -544,9 +591,10 @@ CloseBtn.MouseButton1Click:Connect(ToggleUI)
 task.spawn(function()
     local quotes = {
         "Scripts you haven't know must be Here!",
+        "Don't forget to join our Discord!",
+        "Subscribe to our YouTube channel!",
         "Loading optimized UI layout...",
         "Setting up custom RGB strokes...",
-        "Fetching user details...",
         "Ready to execute!"
     }
     
@@ -558,22 +606,22 @@ task.spawn(function()
         ProgressBar.Size = UDim2.new(progress, 0, 1, 0)
         StatusLabel.Text = string.format("Loading assets... %d%%", math.floor(progress * 100))
         
-        if i % 20 == 0 then
-            QuoteLabel.Text = quotes[(i / 20) % #quotes + 1]
+        if i % 18 == 0 then
+            QuoteLabel.Text = quotes[(math.floor(i / 18) % #quotes) + 1]
         end
         
         task.wait(totalTime / steps)
     end
     
-    -- Smooth transition out of intro
+    -- Transition out of intro
     TweenService:Create(LoadingFrame, FastTween, {Size = UDim2.new(0, 260, 0, 0)}):Play()
     task.wait(0.15)
     LoadingFrame:Destroy()
     
-    -- Show Floating RGB Button
+    -- Show Floating RGB Avatar Circle
     OpenBtn.Visible = true
     
-    -- Open Main Frame
+    -- Reveal Main Frame
     MainFrame.Size = UDim2.new(0, 250, 0, 0)
     MainFrame.Visible = true
     TweenService:Create(MainFrame, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
