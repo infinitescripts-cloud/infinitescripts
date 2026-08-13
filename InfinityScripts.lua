@@ -4,6 +4,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
+local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -514,55 +515,76 @@ end
 -- POPULATE CATEGORIES, PROMOTIONS & SCRIPTS
 ---------------------------------------------------------
 
--- 1. Community & Support Ads Category
+-- 1. Community & Support Ads
 local adsCategory = CreateDropdown("📢 Community & Support")
-
 CreateAdButton("Join Our Discord Server", adsCategory, "https://discord.gg/yourlink", "DC Link Copied!")
 CreateAdButton("Subscribe on YouTube", adsCategory, "https://youtube.com/@yourchannel", "YT Link Copied!")
 CreateAdButton("Follow Our TikTok", adsCategory, "https://tiktok.com/@yourprofile", "TikTok Copied!")
 
--- 2. Main Hubs Category
-local mainHubs = CreateDropdown("Main Hubs & Universal")
+-- 2. Age Evolution
+local ageEvoCategory = CreateDropdown("🦕 Age Evolution")
+CreateScriptButton("Age Evolution", ageEvoCategory, function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/lyamnigeldanauto21-dotcom/infinityscripts/main/aet.lua"))()
+end)
 
-CreateScriptButton("Infinite Yield FE", mainHubs, function()
+-- 3. Pony Legends
+local ponyCategory = CreateDropdown("🦄 Pony Legends")
+CreateScriptButton("Pony Legends", ponyCategory, function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/lyamnigeldanauto21-dotcom/infinityscripts/main/ponylegends.lua"))()
+end)
+
+-- 4. Mega Princess
+local princessCategory = CreateDropdown("👑 Mega Princess")
+CreateScriptButton("Mega Princess", princessCategory, function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/lyamnigeldanauto21-dotcom/infinity/main/InfinityScripts.lua"))()
+end)
+
+-- 5. Murder Mystery 2
+local mm2Category = CreateDropdown("🔪 Murder Mystery 2")
+
+CreateScriptButton("MM2 (Yarmh)", mm2Category, function()
+    local src = ""
+    pcall(function() 
+        src = game:HttpGet("https://yarhm.com", false)
+    end)
+    if src == "" then
+        StarterGui:SetCore("SendNotification", {
+            Title = "YARHM Outage";
+            Text = "YARHM Online is currently unavailable! Sorry for the inconvenience. Using YARHM Offline.";
+            Duration = 5;
+        })
+        src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
+    end
+    loadstring(src)()
+end)
+
+CreateScriptButton("MM2 (Waguri)", mm2Category, function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Waguriiiii/Murder-mystery-2/refs/heads/main/Waguri.lua"))()
+end)
+
+CreateScriptButton("MM2 (Foxname)", mm2Category, function()
+    loadstring(game:HttpGet("https://foxname.top/loader"))()
+end)
+
+CreateScriptButton("MM2 (SP HUB)", mm2Category, function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/as6cd0/SP_Hub/refs/heads/main/Loader"))()
+end)
+
+CreateScriptButton("Infinite MM2", mm2Category, function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Infinite MM2";
+        Text = "Coming Soon!";
+        Duration = 5;
+    })
+end)
+
+-- 6. Universal Utilities
+local utilityCategory = CreateDropdown("⚙️ Universal Tools")
+CreateScriptButton("Infinite Yield FE", utilityCategory, function()
     loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
 end)
-
-CreateScriptButton("System Broken", mainHubs, function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/H17S3C/SystemBroken/main/script"))()
-end)
-
-CreateScriptButton("Nameless Admin", mainHubs, function()
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/FilterAura/Nameless-Admin/main/Source'))()
-end)
-
--- 3. Visuals & ESP
-local visuals = CreateDropdown("Visuals & Character")
-
-CreateScriptButton("Simple ESP", visuals, function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/ic3w0lf22/Unnamed-ESP/master/Un-named%20ESP.lua"))()
-end)
-
-CreateScriptButton("Fly Script (Press E)", visuals, function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEKO-SCRIPTS/Fly-Script/main/script"))()
-end)
-
--- 4. Utility Category
-local utility = CreateDropdown("Utility Tools")
-
-CreateScriptButton("Rejoin Game", utility, function()
+CreateScriptButton("Rejoin Server", utilityCategory, function()
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-end)
-
-CreateScriptButton("Server Hop", utility, function()
-    local HttpService = game:GetService("HttpService")
-    local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
-    for _, s in ipairs(servers.data) do
-        if s.playing < s.maxPlayers and s.id ~= game.JobId then
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
-            break
-        end
-    end
 end)
 
 ---------------------------------------------------------
@@ -593,7 +615,7 @@ task.spawn(function()
         "Scripts you haven't know must be Here!",
         "Don't forget to join our Discord!",
         "Subscribe to our YouTube channel!",
-        "Loading optimized UI layout...",
+        "Loading MM2, Pony Legends & Age Evolution...",
         "Setting up custom RGB strokes...",
         "Ready to execute!"
     }
