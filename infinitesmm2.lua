@@ -110,6 +110,7 @@ VisualsTab:CreateSection("ESP Options")
 
 -- Global Variables
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 local espEveryoneEnabled = false
@@ -121,24 +122,105 @@ local murdererOnlyLoop = nil
 local sheriffHeroOnlyEnabled = false
 local sheriffHeroOnlyLoop = nil
 
+local droppedGunEnabled = false
+local droppedGunLoop = nil
+
 local showSelfESP = false
 
+-- Role Cache & Tracking
+local roleCache = {}
+
+local function getMyRole()
+    local gui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not gui then return end
+    for _, v in ipairs(gui:GetDescendants()) do
+        if v:IsA("TextLabel") or v:IsA("TextButton") then
+            local t = v.Text
+            if t:find("Murderer") then return "Murderer" end
+            if t:find("Sheriff") then return "Sheriff" end
+        end
+    end
+end
+
+local myRole = getMyRole()
+if myRole then roleCache[LocalPlayer] = myRole end
+
+if LocalPlayer:FindFirstChild("PlayerGui") then
+    LocalPlayer.PlayerGui.DescendantAdded:Connect(function(obj)
+        if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+            local t = obj.Text
+            if t:find("Murderer") then roleCache[LocalPlayer] = "Murderer"
+            elseif t:find("Sheriff") then roleCache[LocalPlayer] = "Sheriff" end
+        end
+    end)
+end
+
+local function watchPlayer(p)
+    p.ChildAdded:Connect(function(c)
+        if c:IsA("BoolValue") and c.Value == true then
+            if c.Name == "Murderer" then roleCache[p] = "Murderer"
+            elseif c.Name == "Sheriff" then roleCache[p] = "Sheriff" end
+        elseif c:IsA("StringValue") and (c.Value == "Murderer" or c.Value == "Sheriff") then
+            roleCache[p] = c.Value
+        end
+    end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do watchPlayer(p) end
+Players.PlayerAdded:Connect(watchPlayer)
+
+local function scanRoles()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if not roleCache[p] then
+            for _, c in ipairs(p:GetChildren()) do
+                if c:IsA("BoolValue") and c.Value == true then
+                    if c.Name == "Murderer" then roleCache[p] = "Murderer"
+                    elseif c.Name == "Sheriff" then roleCache[p] = "Sheriff" end
+                elseif c:IsA("StringValue") and (c.Value == "Murderer" or c.Value == "Sheriff") then
+                    roleCache[p] = c.Value
+                end
+            end
+        end
+    end
+end
+
 -- Shared Helpers
-local function isAlive(p)
-    local char = p.Character
-    if not char then return false end
-    local hum = char:FindFirstChild("Humanoid")
-    return hum and hum.Health > 0
+local function alive(p)
+    local c = p.Character
+    if not c then return false end
+    local h = c:FindFirstChild("Humanoid")
+    return h and h.Health > 0
+end
+
+local function hasKnife(p)
+    local c = p.Character
+    if not c then return false end
+    local bp = p:FindFirstChild("Backpack")
+    return (bp and bp:FindFirstChild("Knife")) or c:FindFirstChild("Knife")
 end
 
 local function hasGun(p)
-    local char = p.Character
-    if not char then return false end
+    local c = p.Character
+    if not c then return false end
     local bp = p:FindFirstChild("Backpack")
-    return (bp and bp:FindFirstChild("Gun")) ~= nil or char:FindFirstChild("Gun") ~= nil
+    return (bp and bp:FindFirstChild("Gun")) or c:FindFirstChild("Gun")
 end
 
--- Utility Function to Clean ESP Instances
+local function getMurderer()
+    for p, r in pairs(roleCache) do
+        if r == "Murderer" and alive(p) then return p end
+    end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if alive(p) and hasKnife(p) then return p end
+    end
+    return nil
+end
+
+local function getMap()
+    return Workspace:FindFirstChild("TheGunDrop") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("Normal") or Workspace:FindFirstChild("Factory") or Workspace:FindFirstChild("House") or Workspace:FindFirstChild("Hospital") or Workspace:FindFirstChild("Hotel") or Workspace:FindFirstChild("Mansion") or Workspace:FindFirstChild("Office") or Workspace:FindFirstChild("PoliceStation") or Workspace:FindFirstChild("ResearchFacility") or Workspace:FindFirstChild("MilBase") or Workspace:FindFirstChild("Bank") or Workspace:FindFirstChild("BioLab")
+end
+
+-- Utility Function to Clean Player ESP Instances
 local function CleanESP()
     for _, p in ipairs(Players:GetPlayers()) do
         if p.Character then
@@ -151,354 +233,183 @@ local function CleanESP()
     end
 end
 
--- ==========================================
--- LOGIC 1: ESP EVERYONE (Updated with BoolValue & Distance Logic)
--- ==========================================
-local xerifeDestaRodada = nil
-
-local function getAliveMurdererBool()
-    for _, p in ipairs(Players:GetPlayers()) do
-        if isAlive(p) and p:FindFirstChild("Murderer") and p.Murderer.Value == true then
-            return p
+-- Utility Function to Clean Gun ESP Instances
+local function CleanGunESP()
+    for _, item in ipairs(Workspace:GetDescendants()) do
+        if item.Name == "GunDropESP" or item.Name == "GunDropText" then
+            item:Destroy()
         end
     end
-    return nil
 end
 
-local function GetRoleInfoEveryone(p)
-    local char = p.Character
-    if not char then return nil, nil end
-
-    local hum = char:FindFirstChild("Humanoid")
-    if not hum or hum.Health <= 0 then return nil, nil end
-
-    local root = char:FindFirstChild("HumanoidRootPart")
-
-    -- 1. Check role BoolValues FIRST (works during countdown)
-    if p:FindFirstChild("Murderer") and p.Murderer.Value == true then
-        return "Murderer", Color3.fromRGB(255, 0, 0)
-    end
-
-    if p:FindFirstChild("Sheriff") and p.Sheriff.Value == true then
-        xerifeDestaRodada = p
-        return "Sheriff", Color3.fromRGB(0, 0, 255)
-    end
-
-    -- 2. Check for gun holder (for Hero or if Sheriff picked up gun)
-    local bp = p:FindFirstChild("Backpack")
-    local gun = (bp and bp:FindFirstChild("Gun")) or char:FindFirstChild("Gun")
-    if gun then
-        if xerifeDestaRodada == nil or (xerifeDestaRodada.Character and xerifeDestaRodada.Character.Humanoid.Health <= 0) then
-            xerifeDestaRodada = p
-            return "Sheriff", Color3.fromRGB(0, 0, 255)
-        end
-        if p == xerifeDestaRodada then
-            return "Sheriff", Color3.fromRGB(0, 0, 255)
-        else
-            return "Hero", Color3.fromRGB(255, 215, 0)
-        end
-    end
-
-    -- 3. No role, no gun → Innocent or Lobby (based on distance to Murderer)
-    local murderer = getAliveMurdererBool()
-    if murderer and murderer.Character and root then
-        local assassinPos = murderer.Character:FindFirstChild("HumanoidRootPart")
-        if assassinPos then
-            local dist = (root.Position - assassinPos.Position).Magnitude
-            if dist > 300 then
-                return nil, Color3.fromRGB(255, 255, 255)  -- Lobby
-            end
-            return nil, Color3.fromRGB(0, 255, 0)  -- Innocent
-        end
-    end
-
-    -- Fallback: no murderer found → show as Lobby
-    return nil, Color3.fromRGB(255, 255, 255)
-end
-
+-- ==========================================
+-- LOGIC 1: UPDATED ESP EVERYONE
+-- ==========================================
 local function UpdateESPEveryone()
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p == LocalPlayer and not showSelfESP then
-            local char = p.Character
-            if char then
-                local h = char:FindFirstChild("ESP_MM2")
-                if h then h.Enabled = false end
-                local t = char:FindFirstChild("ESP_Text_MM2")
-                if t then t.Enabled = false end
-            end
-            continue
-        end
+    scanRoles()
+    local murderer = getMurderer()
+    local sheriff = nil
+    local hero = nil
 
-        local char = p.Character
-        if not char then continue end
-
-        local roleName, roleColor = GetRoleInfoEveryone(p)
-
-        local h = char:FindFirstChild("ESP_MM2")
-        if not h then
-            h = Instance.new("Highlight")
-            h.Name = "ESP_MM2"
-            h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            h.Parent = char
-        end
-
-        if roleColor then
-            h.Enabled = true
-            h.FillColor = roleColor
-            h.FillTransparency = (roleColor == Color3.fromRGB(255, 255, 255)) and 0.9 or 0.4
-        else
-            h.Enabled = false
-        end
-
-        local textGui = char:FindFirstChild("ESP_Text_MM2")
-        if not textGui then
-            textGui = Instance.new("BillboardGui")
-            textGui.Name = "ESP_Text_MM2"
-            textGui.Size = UDim2.new(0, 200, 0, 50)
-            textGui.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
-            textGui.StudsOffset = Vector3.new(0, 2.5, 0)
-            textGui.AlwaysOnTop = true
-            textGui.Parent = char
-
-            local label = Instance.new("TextLabel")
-            label.Name = "RoleLabel"
-            label.Size = UDim2.new(1, 0, 1, 0)
-            label.BackgroundTransparency = 1
-            label.Font = Enum.Font.FredokaOne
-            label.TextSize = 20
-            label.TextStrokeTransparency = 0.5
-            label.TextScaled = false
-            label.Parent = textGui
-        end
-
-        local label = textGui:FindFirstChild("RoleLabel")
-
-        if roleName and roleColor then
-            textGui.Enabled = true
-            label.Text = roleName
-            label.TextColor3 = roleColor
-        else
-            textGui.Enabled = false
-            label.Text = ""
-        end
+    for p, r in pairs(roleCache) do
+        if r == "Sheriff" and alive(p) then sheriff = p; break end
     end
-end
 
--- ==========================================
--- LOGIC 2: MURDERER ONLY ESP
--- ==========================================
-local function IsMurderer(p)
-    local char = p.Character
-    if not char then return false end
-
-    local hum = char:FindFirstChild("Humanoid")
-    if not hum or hum.Health <= 0 then return false end
-
-    local bp = p:FindFirstChild("Backpack")
-    local knife = (bp and bp:FindFirstChild("Knife")) or char:FindFirstChild("Knife")
-    return knife ~= nil or (p:FindFirstChild("Murderer") and p.Murderer.Value == true)
-end
-
-local function UpdateMurdererOnly()
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p == LocalPlayer and not showSelfESP then
-            local char = p.Character
-            if char then
-                local h = char:FindFirstChild("ESP_MM2")
-                if h then h.Enabled = false end
-                local t = char:FindFirstChild("ESP_Text_MM2")
-                if t then t.Enabled = false end
-            end
-            continue
-        end
-
-        local char = p.Character
-        if not char then continue end
-
-        local h = char:FindFirstChild("ESP_MM2")
-        if not h then
-            h = Instance.new("Highlight")
-            h.Name = "ESP_MM2"
-            h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            h.Parent = char
-        end
-
-        local textGui = char:FindFirstChild("ESP_Text_MM2")
-        if not textGui then
-            textGui = Instance.new("BillboardGui")
-            textGui.Name = "ESP_Text_MM2"
-            textGui.Size = UDim2.new(0, 200, 0, 50)
-            textGui.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
-            textGui.StudsOffset = Vector3.new(0, 2.5, 0)
-            textGui.AlwaysOnTop = true
-            textGui.Parent = char
-
-            local label = Instance.new("TextLabel")
-            label.Name = "RoleLabel"
-            label.Size = UDim2.new(1, 0, 1, 0)
-            label.BackgroundTransparency = 1
-            label.Font = Enum.Font.FredokaOne
-            label.TextSize = 20
-            label.TextStrokeTransparency = 0.5
-            label.TextScaled = false
-            label.Parent = textGui
-        end
-
-        local label = textGui:FindFirstChild("RoleLabel")
-
-        if IsMurderer(p) then
-            h.Enabled = true
-            h.FillColor = Color3.fromRGB(255, 0, 0)
-            h.FillTransparency = 0.4
-
-            textGui.Enabled = true
-            label.Text = "Murderer"
-            label.TextColor3 = Color3.fromRGB(255, 0, 0)
-        else
-            h.Enabled = false
-            textGui.Enabled = false
-            label.Text = ""
-        end
-    end
-end
-
--- ==========================================
--- LOGIC 3: SHERIFF / HERO ONLY ESP
--- ==========================================
-local originalSheriff = nil
-local lockedHero = nil
-local lastMurdererSheriff = nil
-
-local function getAliveMurderer()
-    for _, p in ipairs(Players:GetPlayers()) do
-        if isAlive(p) then
-            local char = p.Character
-            local bp = p:FindFirstChild("Backpack")
-            if (bp and bp:FindFirstChild("Knife")) or (char and char:FindFirstChild("Knife")) or (p:FindFirstChild("Murderer") and p.Murderer.Value == true) then
-                return p
-            end
-        end
-    end
-    return nil
-end
-
-local function UpdateSheriffHeroOnly()
-    local currentMurderer = getAliveMurderer()
-
-    if not currentMurderer then
+    if not sheriff then
         for _, p in ipairs(Players:GetPlayers()) do
-            local char = p.Character
-            if char then
-                local h = char:FindFirstChild("ESP_MM2")
-                if h then h.Enabled = false end
-                local t = char:FindFirstChild("ESP_Text_MM2")
-                if t then t.Enabled = false end
+            if alive(p) and p:FindFirstChild("Sheriff") and p.Sheriff.Value == true then
+                sheriff = p; roleCache[p] = "Sheriff"; break
             end
         end
-        lastMurdererSheriff = nil
-        return
     end
 
-    if lastMurdererSheriff ~= currentMurderer then
-        originalSheriff = nil
-        lockedHero = nil
-        lastMurdererSheriff = currentMurderer
-    end
-
-    local gunHolder = nil
+    local gunner = nil
     for _, p in ipairs(Players:GetPlayers()) do
-        if isAlive(p) and hasGun(p) then
-            gunHolder = p
-            break
-        end
+        if alive(p) and hasGun(p) then gunner = p; break end
     end
-
-    local sheriffPlayer = nil
-    local heroPlayer = nil
-
-    if gunHolder then
-        if originalSheriff == nil then
-            originalSheriff = gunHolder
-            sheriffPlayer = gunHolder
-        else
-            if gunHolder == originalSheriff and isAlive(originalSheriff) then
-                sheriffPlayer = originalSheriff
-            else
-                if lockedHero == nil or not isAlive(lockedHero) or not hasGun(lockedHero) then
-                    lockedHero = gunHolder
-                end
-                heroPlayer = lockedHero
-            end
+    if gunner then
+        if sheriff and gunner ~= sheriff then
+            hero = gunner; roleCache[gunner] = "Hero"
+        elseif not sheriff then
+            sheriff = gunner; roleCache[gunner] = "Sheriff"
         end
     end
 
     for _, p in ipairs(Players:GetPlayers()) do
         if p == LocalPlayer and not showSelfESP then
-            local char = p.Character
-            if char then
-                local h = char:FindFirstChild("ESP_MM2")
+            local c = p.Character
+            if c then
+                local h = c:FindFirstChild("ESP_MM2")
                 if h then h.Enabled = false end
-                local t = char:FindFirstChild("ESP_Text_MM2")
+                local t = c:FindFirstChild("ESP_Text_MM2")
                 if t then t.Enabled = false end
             end
             continue
         end
 
-        local char = p.Character
-        if not char then continue end
+        local c = p.Character
+        if not c then continue end
 
-        local h = char:FindFirstChild("ESP_MM2")
+        local name, color
+        if p == murderer then
+            name, color = "Murderer", Color3.fromRGB(255,0,0)
+        elseif p == sheriff then
+            name, color = "Sheriff", Color3.fromRGB(0,0,255)
+        elseif p == hero then
+            name, color = "Hero", Color3.fromRGB(255,215,0)
+        else
+            local root = c:FindFirstChild("HumanoidRootPart")
+            if root and murderer and murderer.Character then
+                local ap = murderer.Character:FindFirstChild("HumanoidRootPart")
+                if ap then
+                    local dist = (root.Position - ap.Position).Magnitude
+                    color = dist > 300 and Color3.fromRGB(255,255,255) or Color3.fromRGB(0,255,0)
+                else
+                    color = Color3.fromRGB(255,255,255)
+                end
+            else
+                color = Color3.fromRGB(255,255,255)
+            end
+            name = nil
+        end
+
+        local h = c:FindFirstChild("ESP_MM2")
         if not h then
             h = Instance.new("Highlight")
             h.Name = "ESP_MM2"
             h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            h.Parent = char
+            h.Parent = c
+        end
+        if color then
+            h.Enabled = true
+            h.FillColor = color
+            h.FillTransparency = (color == Color3.fromRGB(255,255,255)) and 0.9 or 0.4
+        else
+            h.Enabled = false
         end
 
-        local textGui = char:FindFirstChild("ESP_Text_MM2")
+        local tg = c:FindFirstChild("ESP_Text_MM2")
+        if not tg then
+            tg = Instance.new("BillboardGui")
+            tg.Name = "ESP_Text_MM2"
+            tg.Size = UDim2.new(0,200,0,50)
+            tg.Adornee = c:FindFirstChild("Head") or c:FindFirstChild("HumanoidRootPart")
+            tg.StudsOffset = Vector3.new(0,2.5,0)
+            tg.AlwaysOnTop = true
+            tg.Parent = c
+
+            local lbl = Instance.new("TextLabel")
+            lbl.Name = "RoleLabel"
+            lbl.Size = UDim2.new(1,0,1,0)
+            lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.FredokaOne
+            lbl.TextSize = 20
+            lbl.TextStrokeTransparency = 0.5
+            lbl.TextScaled = false
+            lbl.Parent = tg
+        end
+        local lbl = tg:FindFirstChild("RoleLabel")
+        if name and color then
+            tg.Enabled = true
+            lbl.Text = name
+            lbl.TextColor3 = color
+        else
+            tg.Enabled = false
+            lbl.Text = ""
+        end
+    end
+end
+
+-- ==========================================
+-- LOGIC 2: DROPPED GUN ESP
+-- ==========================================
+local function UpdateDroppedGunESP()
+    local gunDrop = Workspace:FindFirstChild("GunDrop")
+    if not gunDrop then
+        local currentMap = getMap()
+        if currentMap then
+            gunDrop = currentMap:FindFirstChild("GunDrop")
+        end
+    end
+
+    if gunDrop then
+        local h = gunDrop:FindFirstChild("GunDropESP")
+        if not h then
+            h = Instance.new("Highlight")
+            h.Name = "GunDropESP"
+            h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            h.FillColor = Color3.fromRGB(243, 255, 19)
+            h.OutlineColor = Color3.fromRGB(243, 255, 19)
+            h.FillTransparency = 0.4
+            h.Parent = gunDrop
+        end
+        h.Enabled = true
+
+        local textGui = gunDrop:FindFirstChild("GunDropText")
         if not textGui then
             textGui = Instance.new("BillboardGui")
-            textGui.Name = "ESP_Text_MM2"
+            textGui.Name = "GunDropText"
             textGui.Size = UDim2.new(0, 200, 0, 50)
-            textGui.Adornee = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
-            textGui.StudsOffset = Vector3.new(0, 2.5, 0)
+            textGui.Adornee = gunDrop
+            textGui.StudsOffset = Vector3.new(0, 2, 0)
             textGui.AlwaysOnTop = true
-            textGui.Parent = char
+            textGui.Parent = gunDrop
 
             local label = Instance.new("TextLabel")
-            label.Name = "RoleLabel"
+            label.Name = "GunLabel"
             label.Size = UDim2.new(1, 0, 1, 0)
             label.BackgroundTransparency = 1
             label.Font = Enum.Font.FredokaOne
             label.TextSize = 20
+            label.Text = "Dropped Gun!"
+            label.TextColor3 = Color3.fromRGB(243, 255, 19)
             label.TextStrokeTransparency = 0.5
             label.TextScaled = false
             label.Parent = textGui
         end
-
-        local label = textGui:FindFirstChild("RoleLabel")
-
-        if p == sheriffPlayer then
-            h.Enabled = true
-            h.FillColor = Color3.fromRGB(0, 0, 255)
-            h.FillTransparency = 0.4
-            textGui.Enabled = true
-            label.Text = "Sheriff"
-            label.TextColor3 = Color3.fromRGB(0, 0, 255)
-
-        elseif p == heroPlayer then
-            h.Enabled = true
-            h.FillColor = Color3.fromRGB(255, 215, 0)
-            h.FillTransparency = 0.4
-            textGui.Enabled = true
-            label.Text = "Hero"
-            label.TextColor3 = Color3.fromRGB(255, 215, 0)
-
-        else
-            h.Enabled = false
-            textGui.Enabled = false
-            label.Text = ""
-        end
+        textGui.Enabled = true
+    else
+        CleanGunESP()
     end
 end
 
@@ -520,8 +431,27 @@ VisualsTab:CreateToggle({
          end)
       else
          if espEveryoneLoop then task.cancel(espEveryoneLoop) end
-         xerifeDestaRodada = nil
          CleanESP()
+      end
+   end,
+})
+
+VisualsTab:CreateToggle({
+   Name = "Dropped Gun",
+   CurrentValue = false,
+   Flag = "DroppedGunToggle",
+   Callback = function(Value)
+      droppedGunEnabled = Value
+      if droppedGunEnabled then
+         droppedGunLoop = task.spawn(function()
+            while droppedGunEnabled do
+               pcall(UpdateDroppedGunESP)
+               task.wait(0.2)
+            end
+         end)
+      else
+         if droppedGunLoop then task.cancel(droppedGunLoop) end
+         CleanGunESP()
       end
    end,
 })
@@ -532,49 +462,6 @@ VisualsTab:CreateToggle({
    Flag = "ShowSelfESPToggle",
    Callback = function(Value)
       showSelfESP = Value
-   end,
-})
-
-VisualsTab:CreateToggle({
-   Name = "Murderer Only",
-   CurrentValue = false,
-   Flag = "MurdererOnlyToggle",
-   Callback = function(Value)
-      murdererOnlyEnabled = Value
-      if murdererOnlyEnabled then
-         murdererOnlyLoop = task.spawn(function()
-            while murdererOnlyEnabled do
-               pcall(UpdateMurdererOnly)
-               task.wait(0.2)
-            end
-         end)
-      else
-         if murdererOnlyLoop then task.cancel(murdererOnlyLoop) end
-         CleanESP()
-      end
-   end,
-})
-
-VisualsTab:CreateToggle({
-   Name = "Sheriff/Hero Only",
-   CurrentValue = false,
-   Flag = "SheriffHeroOnlyToggle",
-   Callback = function(Value)
-      sheriffHeroOnlyEnabled = Value
-      if sheriffHeroOnlyEnabled then
-         sheriffHeroOnlyLoop = task.spawn(function()
-            while sheriffHeroOnlyEnabled do
-               pcall(UpdateSheriffHeroOnly)
-               task.wait(0.15)
-            end
-         end)
-      else
-         if sheriffHeroOnlyLoop then task.cancel(sheriffHeroOnlyLoop) end
-         originalSheriff = nil
-         lockedHero = nil
-         lastMurdererSheriff = nil
-         CleanESP()
-      end
    end,
 })
 
