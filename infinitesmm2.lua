@@ -49,7 +49,7 @@ local Window = Rayfield:CreateWindow({
    Name = "Infinite's MM2 | Main Hub",
    Icon = "sword",
    LoadingTitle = "Loading Infinite MM2...",
-   LoadingSubtitle = "Created by poppingirlx & Ashy_Ash7474",
+   LoadingSubtitle = "Created by the shallea",
    Theme = BlackPurpleBlueTheme,
    ShowText = "Infinite MM2",
 
@@ -65,62 +65,13 @@ local Window = Rayfield:CreateWindow({
    KeySystem = false,
 })
 
--- ==========================================
--- TAB 1: MAIN
--- ==========================================
-local MainTab = Window:CreateTab("Main", "home")
-
-MainTab:CreateSection("Security & Verification Notice")
-
-MainTab:CreateParagraph({
-   Title = "Security Warning",
-   Content = "Hey! Just to make sure if you DID bypass the authentication, Please follow our strict rules while using the script. One, Do not copy link anything in this script. Two destroy the script, and three this may contain malicious content and phishing if you got this group another uploading site other than rscripts. Made by SHELLALEE BYE!"
-})
-
-MainTab:CreateButton({
-   Name = "Destroy GUI",
-   Callback = function()
-      Rayfield:Destroy()
-   end,
-})
-
-MainTab:CreateSection("Script Credits")
-
-MainTab:CreateParagraph({
-   Title = "Development Credits",
-   Content = "Created By: Shellaes Dw & Ashy_Ash7474\nSpecial thanks to the Sirius team for the Rayfield UI library framework."
-})
-
-MainTab:CreateParagraph({
-   Title = "About Infinite's MM2",
-   Content = "This script was built specifically for Murder Mystery 2 with security features, custom theme styling, and role-specific utilities."
-})
-
--- ==========================================
--- TAB 2: COMBAT
--- ==========================================
-local CombatTab = Window:CreateTab("Combat", "crosshair")
-
--- ==========================================
--- TAB 3: VISUALS
--- ==========================================
-local VisualsTab = Window:CreateTab("Visuals", "eye")
-
-VisualsTab:CreateSection("ESP Options")
-
--- Global Variables
+-- Global Variables & Services
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 local espEveryoneEnabled = false
 local espEveryoneLoop = nil
-
-local murdererOnlyEnabled = false
-local murdererOnlyLoop = nil
-
-local sheriffHeroOnlyEnabled = false
-local sheriffHeroOnlyLoop = nil
 
 local droppedGunEnabled = false
 local droppedGunLoop = nil
@@ -220,7 +171,7 @@ local function getMap()
     return Workspace:FindFirstChild("TheGunDrop") or Workspace:FindFirstChild("Map") or Workspace:FindFirstChild("Normal") or Workspace:FindFirstChild("Factory") or Workspace:FindFirstChild("House") or Workspace:FindFirstChild("Hospital") or Workspace:FindFirstChild("Hotel") or Workspace:FindFirstChild("Mansion") or Workspace:FindFirstChild("Office") or Workspace:FindFirstChild("PoliceStation") or Workspace:FindFirstChild("ResearchFacility") or Workspace:FindFirstChild("MilBase") or Workspace:FindFirstChild("Bank") or Workspace:FindFirstChild("BioLab")
 end
 
--- Utility Function to Clean Player ESP Instances
+-- Cleanup Functions
 local function CleanESP()
     for _, p in ipairs(Players:GetPlayers()) do
         if p.Character then
@@ -233,7 +184,6 @@ local function CleanESP()
     end
 end
 
--- Utility Function to Clean Gun ESP Instances
 local function CleanGunESP()
     for _, item in ipairs(Workspace:GetDescendants()) do
         if item.Name == "GunDropESP" or item.Name == "GunDropText" then
@@ -242,9 +192,7 @@ local function CleanGunESP()
     end
 end
 
--- ==========================================
--- LOGIC 1: UPDATED ESP EVERYONE
--- ==========================================
+-- ESP Logic Functions
 local function UpdateESPEveryone()
     scanRoles()
     local murderer = getMurderer()
@@ -360,9 +308,6 @@ local function UpdateESPEveryone()
     end
 end
 
--- ==========================================
--- LOGIC 2: DROPPED GUN ESP
--- ==========================================
 local function UpdateDroppedGunESP()
     local gunDrop = Workspace:FindFirstChild("GunDrop")
     if not gunDrop then
@@ -414,8 +359,49 @@ local function UpdateDroppedGunESP()
 end
 
 -- ==========================================
--- VISUALS TOGGLES
+-- TAB 1: MAIN
 -- ==========================================
+local MainTab = Window:CreateTab("Main", "home")
+
+MainTab:CreateSection("Security & Verification Notice")
+
+MainTab:CreateParagraph({
+   Title = "Security Warning",
+   Content = "Hey! Just to make sure if you DID bypass the authentication, Please follow our strict rules while using the script. One, Do not copy link anything in this script. Two destroy the script, and three this may contain malicious content and phishing if you got this group another uploading site other than rscripts. Made by SHELLALEE BYE!"
+})
+
+MainTab:CreateButton({
+   Name = "Destroy GUI",
+   Callback = function()
+      Rayfield:Destroy()
+   end,
+})
+
+MainTab:CreateSection("Script Credits")
+
+MainTab:CreateParagraph({
+   Title = "Development Credits",
+   Content = "Created By: Shellaes Dw & Ashy_Ash7474\nSpecial thanks to the Sirius team for the Rayfield UI library framework."
+})
+
+MainTab:CreateParagraph({
+   Title = "About Infinite's MM2",
+   Content = "This script was built specifically for Murder Mystery 2 with security features, custom theme styling, and role-specific utilities."
+})
+
+-- ==========================================
+-- TAB 2: COMBAT
+-- ==========================================
+local CombatTab = Window:CreateTab("Combat", "crosshair")
+CombatTab:CreateSection("Combat Controls")
+
+-- ==========================================
+-- TAB 3: VISUALS
+-- ==========================================
+local VisualsTab = Window:CreateTab("Visuals", "eye")
+
+VisualsTab:CreateSection("ESP Options")
+
 VisualsTab:CreateToggle({
    Name = "ESP Everyone",
    CurrentValue = false,
@@ -466,7 +452,13 @@ VisualsTab:CreateToggle({
 })
 
 -- ==========================================
--- OTHER TABS
+-- TAB 4: PLAYER
 -- ==========================================
 local PlayerTab = Window:CreateTab("Player", "user")
+PlayerTab:CreateSection("Player Configurations")
+
+-- ==========================================
+-- TAB 5: FUN
+-- ==========================================
 local FunTab = Window:CreateTab("Fun", "smile")
+FunTab:CreateSection("Fun Utilities")
