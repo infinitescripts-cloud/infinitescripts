@@ -49,7 +49,7 @@ local Window = Rayfield:CreateWindow({
    Name = "Infinite's MM2 | Main Hub",
    Icon = "sword",
    LoadingTitle = "Loading Infinite MM2...",
-   LoadingSubtitle = "Created by the shallea",
+   LoadingSubtitle = "Created by poppingirlx & Ashy_Ash7474",
    Theme = BlackPurpleBlueTheme,
    ShowText = "Infinite MM2",
 
@@ -73,10 +73,21 @@ local LocalPlayer = Players.LocalPlayer
 local espEveryoneEnabled = false
 local espEveryoneLoop = nil
 
+local murdererOnlyEnabled = false
+local murdererOnlyLoop = nil
+
+local sheriffHeroOnlyEnabled = false
+local sheriffHeroOnlyLoop = nil
+
 local droppedGunEnabled = false
 local droppedGunLoop = nil
 
 local showSelfESP = false
+
+-- Tracking Variables for Sheriff/Hero Detection
+local sheriff = nil
+local hero = nil
+local lastMurderer = nil
 
 -- Role Cache & Tracking
 local roleCache = {}
@@ -193,20 +204,22 @@ local function CleanGunESP()
 end
 
 -- ESP Logic Functions
+
+-- 1. ESP Everyone
 local function UpdateESPEveryone()
     scanRoles()
     local murderer = getMurderer()
-    local sheriff = nil
-    local hero = nil
+    local currentSheriff = nil
+    local currentHero = nil
 
     for p, r in pairs(roleCache) do
-        if r == "Sheriff" and alive(p) then sheriff = p; break end
+        if r == "Sheriff" and alive(p) then currentSheriff = p; break end
     end
 
-    if not sheriff then
+    if not currentSheriff then
         for _, p in ipairs(Players:GetPlayers()) do
             if alive(p) and p:FindFirstChild("Sheriff") and p.Sheriff.Value == true then
-                sheriff = p; roleCache[p] = "Sheriff"; break
+                currentSheriff = p; roleCache[p] = "Sheriff"; break
             end
         end
     end
@@ -216,10 +229,10 @@ local function UpdateESPEveryone()
         if alive(p) and hasGun(p) then gunner = p; break end
     end
     if gunner then
-        if sheriff and gunner ~= sheriff then
-            hero = gunner; roleCache[gunner] = "Hero"
-        elseif not sheriff then
-            sheriff = gunner; roleCache[gunner] = "Sheriff"
+        if currentSheriff and gunner ~= currentSheriff then
+            currentHero = gunner; roleCache[gunner] = "Hero"
+        elseif not currentSheriff then
+            currentSheriff = gunner; roleCache[gunner] = "Sheriff"
         end
     end
 
@@ -241,9 +254,9 @@ local function UpdateESPEveryone()
         local name, color
         if p == murderer then
             name, color = "Murderer", Color3.fromRGB(255,0,0)
-        elseif p == sheriff then
+        elseif p == currentSheriff then
             name, color = "Sheriff", Color3.fromRGB(0,0,255)
-        elseif p == hero then
+        elseif p == currentHero then
             name, color = "Hero", Color3.fromRGB(255,215,0)
         else
             local root = c:FindFirstChild("HumanoidRootPart")
@@ -308,6 +321,197 @@ local function UpdateESPEveryone()
     end
 end
 
+-- 2. Murderer Only ESP
+local function UpdateMurdererOnly()
+    local murderer = getMurderer()
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer and not showSelfESP then
+            local c = p.Character
+            if c then
+                local h = c:FindFirstChild("ESP_MM2")
+                if h then h.Enabled = false end
+                local t = c:FindFirstChild("ESP_Text_MM2")
+                if t then t.Enabled = false end
+            end
+            continue
+        end
+
+        local c = p.Character
+        if not c then continue end
+
+        local name, color
+        if p == murderer then
+            name, color = "Murderer", Color3.fromRGB(255, 0, 0)
+        else
+            name, color = nil, nil
+        end
+
+        local h = c:FindFirstChild("ESP_MM2")
+        if not h then
+            h = Instance.new("Highlight")
+            h.Name = "ESP_MM2"
+            h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            h.Parent = c
+        end
+        if color then
+            h.Enabled = true
+            h.FillColor = color
+            h.FillTransparency = 0.4
+        else
+            h.Enabled = false
+        end
+
+        local tg = c:FindFirstChild("ESP_Text_MM2")
+        if not tg then
+            tg = Instance.new("BillboardGui")
+            tg.Name = "ESP_Text_MM2"
+            tg.Size = UDim2.new(0, 200, 0, 50)
+            tg.Adornee = c:FindFirstChild("Head") or c:FindFirstChild("HumanoidRootPart")
+            tg.StudsOffset = Vector3.new(0, 2.5, 0)
+            tg.AlwaysOnTop = true
+            tg.Parent = c
+            local lbl = Instance.new("TextLabel")
+            lbl.Name = "RoleLabel"
+            lbl.Size = UDim2.new(1, 0, 1, 0)
+            lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.FredokaOne
+            lbl.TextSize = 20
+            lbl.TextStrokeTransparency = 0.5
+            lbl.TextScaled = false
+            lbl.Parent = tg
+        end
+        local lbl = tg:FindFirstChild("RoleLabel")
+        if name and color then
+            tg.Enabled = true
+            lbl.Text = name
+            lbl.TextColor3 = color
+        else
+            tg.Enabled = false
+            lbl.Text = ""
+        end
+    end
+end
+
+-- 3. Sheriff/Hero Only ESP
+local function UpdateSheriffHeroOnly()
+    local murderer = getMurderer()
+
+    if not murderer then
+        for _, p in ipairs(Players:GetPlayers()) do
+            local c = p.Character
+            if c then
+                local h = c:FindFirstChild("ESP_MM2")
+                if h then h.Enabled = false end
+                local t = c:FindFirstChild("ESP_Text_MM2")
+                if t then t.Enabled = false end
+            end
+        end
+        lastMurderer = nil
+        return
+    end
+
+    if lastMurderer ~= murderer then
+        sheriff = nil
+        hero = nil
+        lastMurderer = murderer
+    end
+
+    local gunner = nil
+    for _, p in ipairs(Players:GetPlayers()) do
+        if alive(p) and hasGun(p) then gunner = p; break end
+    end
+
+    local sheriffPlayer = nil
+    local heroPlayer = nil
+
+    if gunner then
+        if sheriff == nil then
+            sheriff = gunner
+            sheriffPlayer = gunner
+        else
+            if gunner == sheriff and alive(sheriff) then
+                sheriffPlayer = sheriff
+            else
+                if hero == nil or not alive(hero) or not hasGun(hero) then
+                    hero = gunner
+                end
+                heroPlayer = hero
+            end
+        end
+    end
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer and not showSelfESP then
+            local c = p.Character
+            if c then
+                local h = c:FindFirstChild("ESP_MM2")
+                if h then h.Enabled = false end
+                local t = c:FindFirstChild("ESP_Text_MM2")
+                if t then t.Enabled = false end
+            end
+            continue
+        end
+
+        local c = p.Character
+        if not c then continue end
+
+        local name, color
+        if p == sheriffPlayer then
+            name, color = "Sheriff", Color3.fromRGB(0, 0, 255)
+        elseif p == heroPlayer then
+            name, color = "Hero", Color3.fromRGB(255, 215, 0)
+        else
+            name, color = nil, nil
+        end
+
+        local h = c:FindFirstChild("ESP_MM2")
+        if not h then
+            h = Instance.new("Highlight")
+            h.Name = "ESP_MM2"
+            h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            h.Parent = c
+        end
+        if color then
+            h.Enabled = true
+            h.FillColor = color
+            h.FillTransparency = 0.4
+        else
+            h.Enabled = false
+        end
+
+        local tg = c:FindFirstChild("ESP_Text_MM2")
+        if not tg then
+            tg = Instance.new("BillboardGui")
+            tg.Name = "ESP_Text_MM2"
+            tg.Size = UDim2.new(0, 200, 0, 50)
+            tg.Adornee = c:FindFirstChild("Head") or c:FindFirstChild("HumanoidRootPart")
+            tg.StudsOffset = Vector3.new(0, 2.5, 0)
+            tg.AlwaysOnTop = true
+            tg.Parent = c
+            local lbl = Instance.new("TextLabel")
+            lbl.Name = "RoleLabel"
+            lbl.Size = UDim2.new(1, 0, 1, 0)
+            lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.FredokaOne
+            lbl.TextSize = 20
+            lbl.TextStrokeTransparency = 0.5
+            lbl.TextScaled = false
+            lbl.Parent = tg
+        end
+        local lbl = tg:FindFirstChild("RoleLabel")
+        if name and color then
+            tg.Enabled = true
+            lbl.Text = name
+            lbl.TextColor3 = color
+        else
+            tg.Enabled = false
+            lbl.Text = ""
+        end
+    end
+end
+
+-- 4. Dropped Gun ESP
 local function UpdateDroppedGunESP()
     local gunDrop = Workspace:FindFirstChild("GunDrop")
     if not gunDrop then
@@ -386,7 +590,7 @@ MainTab:CreateParagraph({
 
 MainTab:CreateParagraph({
    Title = "About Infinite's MM2",
-   Content = "This script was built specifically for Murder Mystery 2 with security features, custom theme styling, and role-specific utilities."
+   Content = "I kinda only actually made this out of boredom LOL but enjoy I guess. this took me 6 days"
 })
 
 -- ==========================================
@@ -417,6 +621,46 @@ VisualsTab:CreateToggle({
          end)
       else
          if espEveryoneLoop then task.cancel(espEveryoneLoop) end
+         CleanESP()
+      end
+   end,
+})
+
+VisualsTab:CreateToggle({
+   Name = "Only Murderer",
+   CurrentValue = false,
+   Flag = "OnlyMurdererToggle",
+   Callback = function(Value)
+      murdererOnlyEnabled = Value
+      if murdererOnlyEnabled then
+         murdererOnlyLoop = task.spawn(function()
+            while murdererOnlyEnabled do
+               pcall(UpdateMurdererOnly)
+               task.wait(0.15)
+            end
+         end)
+      else
+         if murdererOnlyLoop then task.cancel(murdererOnlyLoop) end
+         CleanESP()
+      end
+   end,
+})
+
+VisualsTab:CreateToggle({
+   Name = "Sheriff/Hero Only",
+   CurrentValue = false,
+   Flag = "SheriffHeroOnlyToggle",
+   Callback = function(Value)
+      sheriffHeroOnlyEnabled = Value
+      if sheriffHeroOnlyEnabled then
+         sheriffHeroOnlyLoop = task.spawn(function()
+            while sheriffHeroOnlyEnabled do
+               pcall(UpdateSheriffHeroOnly)
+               task.wait(0.15)
+            end
+         end)
+      else
+         if sheriffHeroOnlyLoop then task.cancel(sheriffHeroOnlyLoop) end
          CleanESP()
       end
    end,
