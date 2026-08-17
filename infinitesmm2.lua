@@ -42,7 +42,7 @@ local Window = Rayfield:CreateWindow({
    Name = "Infinite's MM2 | Main Hub",
    Icon = "sword",
    LoadingTitle = "Loading Infinite MM2...",
-   LoadingSubtitle = "Created by poppingirlx & Ashy_Ash7474",
+   LoadingSubtitle = "Made by the shellae",
    Theme = BlackPurpleBlueTheme,
    ShowText = "Infinite MM2",
    DisableRayfieldPrompts = true,
@@ -535,6 +535,32 @@ VisualsTab:CreateToggle({
 })
 
 VisualsTab:CreateToggle({
+   Name = "Only Sheriff / Hero",
+   CurrentValue = false,
+   Flag = "OnlySheriffToggle",
+   Callback = function(Value)
+      _G.sheriffHeroOnlyEnabled = Value
+      if Value then
+         _G.sheriffHeroOnlyLoop = task.spawn(function()
+            while _G.sheriffHeroOnlyEnabled do
+               pcall(function()
+                   _G.GlobalIndicators:RemoveGroup("sheriff")
+                   local sher = _G.findSheriff()
+                   if sher and sher.Character and (sher ~= LocalPlayer or _G.showSelfESP) then
+                       _G.GlobalIndicators:Add(sher.Character, { AccentColor = Color3.fromRGB(0, 120, 255), ArrowShow = true, ArrowMinDistance = 0, ArrowSize = UDim2.new(0,40,0,40), LabelText = "Sheriff", ShowLabel = true, GroupName = "sheriff" })
+                   end
+               end)
+               task.wait(0.5)
+            end
+         end)
+      else
+         if _G.sheriffHeroOnlyLoop then task.cancel(_G.sheriffHeroOnlyLoop) end
+         _G.GlobalIndicators:RemoveGroup("sheriff")
+      end
+   end,
+})
+
+VisualsTab:CreateToggle({
    Name = "Dropped Gun ESP",
    CurrentValue = false,
    Flag = "DroppedGunToggle",
@@ -556,6 +582,34 @@ VisualsTab:CreateToggle({
       else
          if _G.droppedGunLoop then task.cancel(_G.droppedGunLoop) end
          _G.CleanGunESP()
+      end
+   end,
+})
+
+VisualsTab:CreateToggle({
+   Name = "Trap ESP",
+   CurrentValue = false,
+   Flag = "TrapESPToggle",
+   Callback = function(Value)
+      _G.trapESPEnabled = Value
+      if Value then
+         _G.trapESPLoop = task.spawn(function()
+            while _G.trapESPEnabled do
+               pcall(function()
+                   _G.GlobalIndicators:RemoveGroup("traps")
+                   local map = _G.getMap() or Workspace
+                   for _, obj in ipairs(map:GetDescendants()) do
+                       if obj:IsA("Model") and (obj.Name == "Trap" or obj.Name:find("Trap")) then
+                           _G.GlobalIndicators:Add(obj, { AccentColor = Color3.fromRGB(255, 140, 0), ArrowShow = false, LabelText = "⚠️ Trap", ShowLabel = true, GroupName = "traps" })
+                       end
+                   end
+               end)
+               task.wait(1)
+            end
+         end)
+      else
+         if _G.trapESPLoop then task.cancel(_G.trapESPLoop) end
+         _G.GlobalIndicators:RemoveGroup("traps")
       end
    end,
 })
