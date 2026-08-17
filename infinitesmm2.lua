@@ -1,37 +1,29 @@
 -- ==========================================
--- PART 1: CORE FRAMEWORK & THEME
+-- CHUNK 1 OF 3 (PASTE FIRST)
 -- ==========================================
 
--- Load Rayfield UI Library
-getgenv().Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- Custom Theme: Black/White with Blue & Purple Hues
 local BlackPurpleBlueTheme = {
    TextColor = Color3.fromRGB(255, 255, 255),
-
    Background = Color3.fromRGB(15, 15, 20),
    Topbar = Color3.fromRGB(25, 25, 32),
    Shadow = Color3.fromRGB(10, 10, 15),
-
    NotificationBackground = Color3.fromRGB(22, 22, 30),
    NotificationActionsBackground = Color3.fromRGB(138, 92, 246),
-
    TabBackground = Color3.fromRGB(35, 35, 45),
    TabStroke = Color3.fromRGB(60, 60, 80),
    TabBackgroundSelected = Color3.fromRGB(124, 58, 237),
    TabTextColor = Color3.fromRGB(200, 200, 220),
    SelectedTabTextColor = Color3.fromRGB(255, 255, 255),
-
    ElementBackground = Color3.fromRGB(28, 28, 38),
    ElementBackgroundHover = Color3.fromRGB(38, 38, 52),
    SecondaryElementBackground = Color3.fromRGB(20, 20, 28),
    ElementStroke = Color3.fromRGB(55, 55, 75),
    SecondaryElementStroke = Color3.fromRGB(45, 45, 65),
-
    SliderBackground = Color3.fromRGB(40, 40, 55),
    SliderProgress = Color3.fromRGB(14, 165, 233),
    SliderStroke = Color3.fromRGB(56, 189, 248),
-
    ToggleBackground = Color3.fromRGB(30, 30, 40),
    ToggleEnabled = Color3.fromRGB(37, 99, 235),
    ToggleDisabled = Color3.fromRGB(70, 70, 85),
@@ -39,37 +31,30 @@ local BlackPurpleBlueTheme = {
    ToggleDisabledStroke = Color3.fromRGB(90, 90, 110),
    ToggleEnabledOuterStroke = Color3.fromRGB(59, 130, 246),
    ToggleDisabledOuterStroke = Color3.fromRGB(40, 40, 55),
-
    DropdownSelected = Color3.fromRGB(109, 40, 217),
    DropdownUnselected = Color3.fromRGB(28, 28, 38),
-
    InputBackground = Color3.fromRGB(25, 25, 35),
    InputStroke = Color3.fromRGB(99, 102, 241),
    PlaceholderColor = Color3.fromRGB(160, 160, 185)
 }
 
--- Create Main Window
-getgenv().MainWindow = getgenv().Rayfield:CreateWindow({
+local Window = Rayfield:CreateWindow({
    Name = "Infinite's MM2 | Main Hub",
    Icon = "sword",
    LoadingTitle = "Loading Infinite MM2...",
-   LoadingSubtitle = "Created by shellae 😹",
+   LoadingSubtitle = "Created by poppingirlx & Ashy_Ash7474",
    Theme = BlackPurpleBlueTheme,
    ShowText = "Infinite MM2",
-
    DisableRayfieldPrompts = true,
    DisableBuildWarnings = true,
-
    ConfigurationSaving = {
       Enabled = true,
       FolderName = "InfiniteMM2_Main",
       FileName = "MainConfig"
    },
-
    KeySystem = false,
 })
 
--- Global Variables & Services
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
@@ -79,27 +64,20 @@ local LocalPlayer = Players.LocalPlayer
 
 _G.espEveryoneEnabled = false
 _G.espEveryoneLoop = nil
-
 _G.murdererOnlyEnabled = false
 _G.murdererOnlyLoop = nil
-
 _G.sheriffHeroOnlyEnabled = false
 _G.sheriffHeroOnlyLoop = nil
-
 _G.droppedGunEnabled = false
 _G.droppedGunLoop = nil
-
 _G.showSelfESP = false
-
 _G.roleNotifyEnabled = false
 _G.roleNotifyLoop = nil
 _G.lastMurderer = nil
 _G.lastSheriff = nil
-
 _G.gunNotifyEnabled = false
 _G.gunNotifyLoop = nil
 _G.gunExists = false
-
 _G.roleCache = {}
 
 local function getMyRole()
@@ -141,17 +119,6 @@ end
 for _, p in ipairs(Players:GetPlayers()) do watchPlayer(p) end
 Players.PlayerAdded:Connect(watchPlayer)
 
--- ==========================================
--- PART 2: ESP MODULE & DETECTION SYSTEM
--- ==========================================
-
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-
 _G.scanRoles = function()
     for _, p in ipairs(Players:GetPlayers()) do
         if not _G.roleCache[p] then
@@ -167,7 +134,10 @@ _G.scanRoles = function()
     end
 end
 
--- ESP Indicator Engine
+-- ==========================================
+-- CHUNK 2 OF 3 (PASTE SECOND)
+-- ==========================================
+
 local function ESPIndicatorModule()
     local e = {}; e.__index = e
     local RunS, PlayersS, HttpS, TweenS = RunService, Players, HttpService, TweenService
@@ -429,20 +399,8 @@ _G.CleanGunESP = function()
 end
 
 -- ==========================================
--- PART 3: UI INTERFACE & EVENT HANDLERS
+-- CHUNK 3 OF 3 (PASTE THIRD)
 -- ==========================================
-
-local Rayfield = getgenv().Rayfield
-local Window = getgenv().MainWindow
-
-if not Window then
-    warn("Part 1 must be executed before Part 3!")
-    return
-end
-
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
 
 local function notifyRoles()
     if not _G.roleNotifyEnabled then return end
