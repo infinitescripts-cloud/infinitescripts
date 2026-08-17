@@ -3,7 +3,7 @@
 -- ==========================================
 
 -- Load Rayfield UI Library
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+getgenv().Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Custom Theme: Black/White with Blue & Purple Hues
 local BlackPurpleBlueTheme = {
@@ -49,11 +49,11 @@ local BlackPurpleBlueTheme = {
 }
 
 -- Create Main Window
-_G.Window = Rayfield:CreateWindow({
+getgenv().MainWindow = getgenv().Rayfield:CreateWindow({
    Name = "Infinite's MM2 | Main Hub",
    Icon = "sword",
    LoadingTitle = "Loading Infinite MM2...",
-   LoadingSubtitle = "Created by poppingirlx & Ashy_Ash7474",
+   LoadingSubtitle = "Created by shellae 😹",
    Theme = BlackPurpleBlueTheme,
    ShowText = "Infinite MM2",
 
@@ -432,7 +432,14 @@ end
 -- PART 3: UI INTERFACE & EVENT HANDLERS
 -- ==========================================
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = getgenv().Rayfield
+local Window = getgenv().MainWindow
+
+if not Window then
+    warn("Part 1 must be executed before Part 3!")
+    return
+end
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
@@ -490,7 +497,7 @@ local function checkGunNotifier()
 end
 
 -- TAB 1: MAIN
-local MainTab = _G.Window:CreateTab("Main", "home")
+local MainTab = Window:CreateTab("Main", "home")
 MainTab:CreateSection("Security & Verification Notice")
 MainTab:CreateParagraph({ Title = "Security Warning", Content = "Hey! Just to make sure if you DID bypass the authentication, Please follow our strict rules while using the script. One, Do not copy link anything in this script. Two destroy the script, and three this may contain malicious content and phishing if you got this group another uploading site other than rscripts. Made by SHELLALEE BYE!" })
 MainTab:CreateButton({ Name = "Destroy GUI", Callback = function() Rayfield:Destroy() end })
@@ -498,11 +505,11 @@ MainTab:CreateSection("Script Credits")
 MainTab:CreateParagraph({ Title = "Development Credits", Content = "Created By: Shellaes Dw & Ashy_Ash7474\nSpecial thanks to the Sirius team for the Rayfield UI library framework." })
 
 -- TAB 2: COMBAT
-local CombatTab = _G.Window:CreateTab("Combat", "crosshair")
+local CombatTab = Window:CreateTab("Combat", "crosshair")
 CombatTab:CreateSection("Combat Controls")
 
 -- TAB 3: VISUALS
-local VisualsTab = _G.Window:CreateTab("Visuals", "eye")
+local VisualsTab = Window:CreateTab("Visuals", "eye")
 VisualsTab:CreateSection("ESP Options")
 
 VisualsTab:CreateToggle({
@@ -641,8 +648,8 @@ VisualsTab:CreateToggle({
 })
 
 -- TAB 4 & 5
-local PlayerTab = _G.Window:CreateTab("Player", "user")
+local PlayerTab = Window:CreateTab("Player", "user")
 PlayerTab:CreateSection("Player Configurations")
 
-local FunTab = _G.Window:CreateTab("Fun", "smile")
+local FunTab = Window:CreateTab("Fun", "smile")
 FunTab:CreateSection("Fun Utilities")
